@@ -1,0 +1,15 @@
+{
+  "development": {
+    "username": "postgres",
+    "password": "redsys",
+    "database": "vcoach",
+    "host": "localhost",
+    "dialect": "postgres"
+  },
+  "test": {
+    
+  },
+  "production": {
+    
+  }
+}
