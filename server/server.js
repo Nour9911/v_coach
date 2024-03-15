@@ -1,26 +1,27 @@
-// server.js
-
 const express = require('express');
+const bodyParser = require('body-parser');
+const playerRoutes = require('./routes/PlayerRoutes');
+const matchReportRoutes = require('./routes/MatchReportRoutes');
+
 const app = express();
-const sequelize = require('./config/db'); // Import Sequelize instance
-const playerRoutes = require('./routes/PlayerRoute');
+const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.json()); // Parse JSON request bodies
+app.use(bodyParser.json());
 
-// Routes
-app.use('/api', playerRoutes);
+// Player routes
+app.use('/api/players', playerRoutes);
 
-// Sync Sequelize models with database
-sequelize.sync({ force: true }) // Use { force: true } to drop existing tables
-  .then(() => {
-    console.log('Database synced successfully');
-    // Start the server after syncing the database
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('Unable to sync database:', err);
-  });
+// Match report routes
+app.use('/api/match-reports', matchReportRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

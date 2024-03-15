@@ -1,12 +1,20 @@
-# For the backend (Express.js)
-FROM node:14-alpine
+# Use the official Node.js 14 image as a base image
+FROM node:14
 
-WORKDIR /app/server
+# Set the working directory inside the container
+WORKDIR /app
 
-COPY package.json package-lock.json ./
+# Copy package.json and package-lock.json to the working directory
+COPY package*.json ./
 
-RUN npm install --silent
+# Install dependencies
+RUN npm install
 
+# Copy the rest of the application code to the working directory
 COPY . .
 
-CMD ["node", "server.js"]
+# Expose the port that your app runs on
+EXPOSE 3000
+
+# Run knex migrations and start the Node.js server
+CMD ["npm", "run", "migrate:latest", "&&", "node", "server.js"]

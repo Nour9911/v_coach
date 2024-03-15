@@ -1,72 +1,77 @@
-// server/controllers/playerController.js
-
-const Player = require('../models/player');
+const Player = require('../models/Player');
 
 // Create a new player
 exports.createPlayer = async (req, res) => {
+  const { name, lastname, birthdate, lengh, weight, speedtest, endurancetest, team_id } = req.body;
   try {
-    const { name, age, position } = req.body;
-    const player = await Player.create({ name, age, position });
-    res.status(201).json(player);
+    const newPlayer = await Player.createPlayer(name, lastname, birthdate, lengh, weight, speedtest, endurancetest, team_id);
+    res.json(newPlayer);
+    console.log(`Received teamId: ${team_id}`);
+
   } catch (error) {
-    res.status(500).json({ error: 'Unable to create player' });
+    console.error(error.message);
+    res.status(500).send('Server Error');
   }
 };
 
-// Get all players
+// Get all players by team ID
 exports.getAllPlayers = async (req, res) => {
+  const { team_id } = req.params; // Extract teamId from route parameters
+
   try {
-    const players = await Player.findAll();
-    res.status(200).json(players);
+    const teamPlayers = await Player.getAllPlayersByTeamId(team_id);
+    res.json(teamPlayers);
   } catch (error) {
-    res.status(500).json({ error: 'Unable to fetch players' });
+    console.error(error.message);
+    res.status(500).send('Server Error');
   }
 };
 
-// Get player by ID
+// Get a player by ID
 exports.getPlayerById = async (req, res) => {
+  const id = req.params.id;
+
   try {
-    const { id } = req.params;
-    const player = await Player.findByPk(id);
-    if (player) {
-      res.status(200).json(player);
-    } else {
-      res.status(404).json({ error: 'Player not found' });
+    const player = await Player.getPlayerById(id);
+    if (!player) {
+      return res.status(404).send({ message: 'Player not found' });
     }
+    res.json(player);
   } catch (error) {
-    res.status(500).json({ error: 'Unable to fetch player' });
+    console.error(error.message);
+    res.status(500).send('Server Error');
   }
 };
 
-// Update player by ID
+// Update a player
 exports.updatePlayer = async (req, res) => {
+  const id = req.params.id;
+  const { name, lastname, birthdate, lengh, weight, speedtest, endurancetest } = req.body;
+
   try {
-    const { id } = req.params;
-    const { name, age, position } = req.body;
-    const player = await Player.findByPk(id);
-    if (player) {
-      await player.update({ name, age, position });
-      res.status(200).json(player);
-    } else {
-      res.status(404).json({ error: 'Player not found' });
+    const updatedPlayer = await Player.updatePlayer(id, name, lastname, birthdate, lengh, weight, speedtest, endurancetest);
+    if (!updatedPlayer) {
+      return res.status(404).send({ message: 'Player not found' });
     }
+    res.json(updatedPlayer);
   } catch (error) {
-    res.status(500).json({ error: 'Unable to update player' });
+    console.error(error.message);
+    res.status(500).send('Server Error');
   }
 };
 
-// Delete player by ID
+// Delete a player
 exports.deletePlayer = async (req, res) => {
+  const id = req.params.id;
+
   try {
-    const { id } = req.params;
-    const player = await Player.findByPk(id);
-    if (player) {
-      await player.destroy();
-      res.status(204).end();
-    } else {
-      res.status(404).json({ error: 'Player not found' });
+    const deletedPlayer = await Player.deletePlayer(id);
+    if (!deletedPlayer) {
+      return res.status(404).send({ message: 'Player not found' });
     }
+    res.json(deletedPlayer);
   } catch (error) {
-    res.status(500).json({ error: 'Unable to delete player' });
+    console.error(error.message);
+    res.status(500).send('Server Error');
   }
 };
