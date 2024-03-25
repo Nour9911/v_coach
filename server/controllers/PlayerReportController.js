@@ -1,5 +1,9 @@
 const PlayerReport = require('../models/PlayerReport');
 const Player = require('../models/Player');
+const knex = require('knex');
+const knexConfig = require('../knexfile');
+const db = knex(knexConfig.development);
+
 
 // Controller function to get player metrics by ID
 exports.getPlayerMetrics = async (req, res) => {
@@ -59,67 +63,69 @@ exports.getTeamMetrics = async (req, res) => {
   const teamId = req.params.teamId;
 
   try {
-    // Fetch team's class and continent from the teams table
-    const teamData = await knex('teams')
-      .select('class', 'continent')
-      .where('id', teamId)
-      .first();
+    // Retrieve team by team ID
+    const teamData = await db('teams').where({ id: teamId }).first();
 
     if (!teamData) {
       return res.status(404).json({ error: 'Team not found' });
     }
 
-    // Retrieve all player reports for the team
-    const matchIds = await knex('matches')
-      .where('team_id', teamId)
-      .pluck('id');
+    // Retrieve all matches for the team
+    const matches = await db('matches')
+      .where('home_team_id', teamId)
+      .orWhere('away_team_id', teamId)
+      .select('id');
 
-    const playerReports = await knex('report')
-      .whereIn('match_id', matchIds)
-      .join('players', 'report.player_id', 'players.id');
+    // Extract match IDs
+    const matchIds = matches.map(match => match.id);
 
-  // Aggregate metrics for the team
-  let totalCP = 0,
-    totalBP = 0,
-    totalBC = 0,
-    totalCT = 0,
-    totalBT = 0,
-    totalEP = 0,
-    totalEC = 0,
-    totalET = 0,
-    totalCG = 0,
-    totalRP = 0,
-    totalAS = 0,
-    totalGM = 0,
-    totalGR = 0,
-    totalBD = 0;
+    // Retrieve all player reports for the team's matches
+    const playerReports = await db('player_report')
+      .whereIn('match_id', matchIds);
 
-  playerReports.forEach(report => {
-    totalCP += report.control_pass || 0;
-    totalBP += report.bad_pass || 0;
-    totalBC += report.bad_control || 0;
-    totalCT += report.control_shoot || 0;
-    totalBT += report.bad_shoot || 0;
-    totalEP += report.excellent_pass || 0;
-    totalEC += report.excellent_control || 0;
-    totalET += report.excellent_shoot || 0;
-    totalCG += report.control_and_goal || 0;
-    totalRP += report.recup_pass || 0;
-    totalAS += report.adversary_square_reaching || 0;
-    totalGM += report.goals_marked || 0;
-    totalGR += report.goals_received || 0;
-    totalBD += report.discipline || 0;
-  });
 
-const countReports = playerReports.length;
+    // Aggregate metrics for the team
+    let totalCP = 0,
+      totalBP = 0,
+      totalBC = 0,
+      totalCT = 0,
+      totalBT = 0,
+      totalEP = 0,
+      totalEC = 0,
+      totalET = 0,
+      totalCG = 0,
+      totalRP = 0,
+      totalAS = 0,
+      totalGM = 0,
+      totalGR = 0,
+      totalBD = 0;
 
-// Calculate derived metrics
-const EPC = totalCP + totalEP + totalEC; // Calculate touched balls
-const BPC = totalBP + totalBC; // Calculate lost balls
-const GGM = totalGM; // Calculate goals marked
-const GGR = totalGR; // Calculate goals received
-const BDP = (totalBD === 0) ? 100 : Math.max(0, 100 - (totalBD * 9)); // Calculate discipline percentage
-const AP = totalAS; // Calculate average pressure
+    playerReports.forEach(report => {
+      totalCP += report.control_pass || 0;
+      totalBP += report.bad_pass || 0;
+      totalBC += report.bad_control || 0;
+      totalCT += report.control_shoot || 0;
+      totalBT += report.bad_shoot || 0;
+      totalEP += report.excellent_pass || 0;
+      totalEC += report.excellent_control || 0;
+      totalET += report.excellent_shoot || 0;
+      totalCG += report.control_and_goal || 0;
+      totalRP += report.recup_pass || 0;
+      totalAS += report.adversary_square_reaching || 0;
+      totalGM += report.goals_marked || 0;
+      totalGR += report.goals_received || 0;
+      totalBD += report.discipline || 0;
+    });
+
+    const countReports = playerReports.length;
+
+    // Calculate derived metrics
+    const EPC = totalCP + totalEP + totalEC; // Calculate touched balls
+    const BPC = totalBP + totalBC; // Calculate lost balls
+    const GGM = totalGM; // Calculate goals marked
+    const GGR = totalGR; // Calculate goals received
+    const BDP = (totalBD === 0) ? 100 : Math.max(0, 100 - (totalBD * 9)); // Calculate discipline percentage
+    const AP = totalAS; // Calculate average pressure
 
     // Determine team class and continent based on team's data
     let CLASS = 1;
@@ -168,12 +174,11 @@ const AP = totalAS; // Calculate average pressure
 
     // Generate response object with calculated values
     const responseData = {
-      controlPassPercentage: P,
-      shootInFramePercentage: T,
+      controlPassPercentage: (totalCP + totalEP + totalEC) / countReports,
+      shootInFramePercentage: ((totalCT + totalET) / countReports) * 100,
       disciplinePercentage: BDP,
       touchedBalls: EPC,
       lostBalls: BPC,
-      shoots: ECT,
       goalsMarked: GGM,
       goalsReceived: GGR,
       averagePressure: AP,
@@ -189,6 +194,7 @@ const AP = totalAS; // Calculate average pressure
     res.status(500).send('Server Error');
   }
 };
+
 
 
 

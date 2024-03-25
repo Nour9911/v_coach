@@ -3,7 +3,10 @@ const router = express.Router();
 const PlayerReportController = require('../controllers/PlayerReportController');
 
 // Route to get player metrics by player ID
-router.get('/:playerId/metrics', PlayerReportController.getPlayerMetrics);
+router.get('/:playerId/playermetrics', PlayerReportController.getPlayerMetrics);
+
+// Route to get Team metrics by team ID
+router.get('/:teamId/teammetrics', PlayerReportController.getTeamMetrics);
 
 // Route to create a new player report entry
 router.post('/addreport', PlayerReportController.createPlayerReport);

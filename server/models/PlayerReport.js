@@ -13,6 +13,17 @@ const PlayerReport = {
     }
   },
 
+// Function to retrieve team metrics by match ID
+getTeamMetricsByMatchId: async (matchId) => {
+  try {
+    // Implement logic to retrieve team metrics by match ID
+    const teamMetrics = await db('player_report').where({ match_id: matchId }).first();
+    return teamMetrics;
+  } catch (error) {
+    throw error;
+  }
+},
+
   // Function to create a new player report entry
   createPlayerReport: async (reportData) => {
     try {
