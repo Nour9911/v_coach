@@ -2,9 +2,9 @@ const Player = require('../models/Player');
 
 // Create a new player
 exports.createPlayer = async (req, res) => {
-  const { name, lastname, birthdate, lengh, weight, speedtest, endurancetest, team_id } = req.body;
+  const { name, lastname, birthdate, country, lengh, weight, speedtest, endurancetest, team_id } = req.body;
   try {
-    const newPlayer = await Player.createPlayer(name, lastname, birthdate, lengh, weight, speedtest, endurancetest, team_id);
+    const newPlayer = await Player.createPlayer(name, lastname, birthdate, country, lengh, weight, speedtest, endurancetest, team_id);
     res.json(newPlayer);
     console.log(`Received teamId: ${team_id}`);
 
@@ -16,10 +16,10 @@ exports.createPlayer = async (req, res) => {
 
 // Get all players by team ID
 exports.getAllPlayers = async (req, res) => {
-  const { team_id } = req.params; // Extract teamId from route parameters
+  const { teamId } = req.params; // Extract teamId from route parameters
 
   try {
-    const teamPlayers = await Player.getAllPlayersByTeamId(team_id);
+    const teamPlayers = await Player.getAllPlayersByTeamId(teamId);
     res.json(teamPlayers);
   } catch (error) {
     console.error(error.message);
@@ -46,10 +46,10 @@ exports.getPlayerById = async (req, res) => {
 // Update a player
 exports.updatePlayer = async (req, res) => {
   const id = req.params.id;
-  const { name, lastname, birthdate, lengh, weight, speedtest, endurancetest } = req.body;
+  const { name, lastname, birthdate, country, lengh, weight, speedtest, endurancetest } = req.body;
 
   try {
-    const updatedPlayer = await Player.updatePlayer(id, name, lastname, birthdate, lengh, weight, speedtest, endurancetest);
+    const updatedPlayer = await Player.updatePlayer(id, name, lastname, birthdate, country, lengh, weight, speedtest, endurancetest);
     if (!updatedPlayer) {
       return res.status(404).send({ message: 'Player not found' });
     }

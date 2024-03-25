@@ -4,6 +4,7 @@ exports.up = function(knex) {
       table.string('name').nullable();
       table.string('lastname').nullable();
       table.date('birthdate').nullable();
+      table.string('country').nullable();
       table.integer('lengh').nullable();
       table.integer('weight').nullable();
       table.integer('speedtest').nullable();
