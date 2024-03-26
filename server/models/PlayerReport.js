@@ -38,8 +38,8 @@ getTeamMetricsByMatchId: async (matchId) => {
   getPlayerReportsByTeamAndMatch: async (teamId, matchId) => {
     try {
       const reports = await db('player_report')
-        .join('player', 'player_report.player_id', '=', 'player.id')
-        .where({ 'player.team_id': teamId, 'player_report.match_id': matchId })
+        .join('players', 'player_report.player_id', '=', 'players.id')
+        .where({ 'players.team_id': teamId, 'player_report.match_id': matchId })
         .select('player_report.*');
       return reports;
     } catch (error) {
