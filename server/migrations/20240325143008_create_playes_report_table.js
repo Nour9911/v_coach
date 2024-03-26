@@ -18,6 +18,9 @@ exports.up = function(knex) {
       table.integer('recup_pass').nullable();
       table.integer('discipline').nullable();
       table.timestamp('created_at').defaultTo(knex.fn.now());
+
+      // Add a composite unique constraint for player_id and match_id
+      table.unique(['player_id', 'match_id']);
       // Add any additional fields as needed
     });
   };

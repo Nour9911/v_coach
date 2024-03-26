@@ -6,30 +6,45 @@ const db = knex(knexConfig.development);
 
 
 // Controller function to get player metrics by ID
+
 exports.getPlayerMetrics = async (req, res) => {
-  const playerId = req.params.playerId;
+  const { playerId, matchId } = req.params;
 
   try {
-    // Retrieve player metrics from the database
-    const playerMetrics = await PlayerReport.getPlayerMetricsByPlayerId(playerId);
+    // Retrieve player report for the specified player and match
+    const playerReport = await db('player_report')
+      .where({
+        player_id: playerId,
+        match_id: matchId
+      })
+      .first();
+
+    // Check if playerReport is not null
+    if (!playerReport) {
+      return res.status(404).json({ error: 'Player metrics not found for the specified match' });
+    }
 
     // Retrieve player data from the players table to get speed and endurance
-    const playerData = await Player.getPlayerById(playerId);
+    const playerData = await db('players').where('id', playerId).first();
     const playerSpeed = playerData.speedtest;
     const playerEndurance = playerData.endurancetest;
 
-    // Perform calculations
-    const CP = playerMetrics.control_pass || 0;
-    const BP = playerMetrics.bad_pass || 0;
-    const BC = playerMetrics.bad_control || 0;
-    const CT = playerMetrics.control_shoot || 0;
-    const BT = playerMetrics.bad_shoot || 0;
-    const EP = playerMetrics.excellent_pass || 0;
-    const EC = playerMetrics.excellent_control || 0;
-    const ET = playerMetrics.excellent_shoot || 0;
-    const CG = playerMetrics.control_and_goal || 0;
-    const RP = playerMetrics.recup_pass || 0;
-    const BD = playerMetrics.discipline || 0;
+    // Perform calculations based on playerReport
+    const { control_pass, bad_pass, bad_control, control_shoot, bad_shoot, excellent_pass,
+      excellent_control, excellent_shoot, control_and_goal, recup_pass, discipline } = playerReport;
+
+    // Perform your calculations here
+    const CP = control_pass || 0;
+    const BP = bad_pass || 0;
+    const BC = bad_control || 0;
+    const CT = control_shoot || 0;
+    const BT = bad_shoot || 0;
+    const EP = excellent_pass || 0;
+    const EC = excellent_control || 0;
+    const ET = excellent_shoot || 0;
+    const CG = control_and_goal || 0;
+    const RP = recup_pass || 0;
+    const BD = discipline || 0;
 
     const BDP = (BD === 0) ? 100 : Math.max(0, 100 - (BD * 9));
     const TB = CP + EP + EC + CT + ET + CG + BP + BC + BT;
@@ -59,8 +74,9 @@ exports.getPlayerMetrics = async (req, res) => {
 };
 
 
+
 exports.getTeamMetrics = async (req, res) => {
-  const teamId = req.params.teamId;
+  const { teamId, matchId } = req.params;
 
   try {
     // Retrieve team by team ID
@@ -70,21 +86,30 @@ exports.getTeamMetrics = async (req, res) => {
       return res.status(404).json({ error: 'Team not found' });
     }
 
-    // Retrieve all matches for the team
-    const matches = await db('matches')
-      .where('home_team_id', teamId)
-      .orWhere('away_team_id', teamId)
-      .select('id');
+    // Retrieve player IDs for the team
+    const playerIds = await db('players')
+      .where({ team_id: teamId })
+      .pluck('id');
 
-    // Extract match IDs
-    const matchIds = matches.map(match => match.id);
-
-    // Retrieve all player reports for the team's matches
+    // Retrieve player reports for the specified match and team
     const playerReports = await db('player_report')
-      .whereIn('match_id', matchIds);
+      .whereIn('player_id', playerIds)
+      .andWhere('match_id', matchId)
+      .select(
+        'control_pass',
+        'bad_pass',
+        'bad_control',
+        'control_shoot',
+        'bad_shoot',
+        'excellent_pass',
+        'excellent_control',
+        'excellent_shoot',
+        'control_and_goal',
+        'recup_pass',
+        'discipline'
+      );
 
-
-    // Aggregate metrics for the team
+    // Aggregate metrics for the team's specified match
     let totalCP = 0,
       totalBP = 0,
       totalBC = 0,
@@ -100,6 +125,7 @@ exports.getTeamMetrics = async (req, res) => {
       totalGR = 0,
       totalBD = 0;
 
+    // Aggregate player report metrics
     playerReports.forEach(report => {
       totalCP += report.control_pass || 0;
       totalBP += report.bad_pass || 0;
@@ -111,47 +137,44 @@ exports.getTeamMetrics = async (req, res) => {
       totalET += report.excellent_shoot || 0;
       totalCG += report.control_and_goal || 0;
       totalRP += report.recup_pass || 0;
-      totalAS += report.adversary_square_reaching || 0;
-      totalGM += report.goals_marked || 0;
-      totalGR += report.goals_received || 0;
       totalBD += report.discipline || 0;
+      totalAS++; // Incrementing for each player report
+      totalGM += report.control_and_goal || 0; // Incrementing for each player report
+      totalGR += report.goals_received || 0; // Incrementing for each player report
     });
 
-    const countReports = playerReports.length;
-
     // Calculate derived metrics
-    const EPC = totalCP + totalEP + totalEC; // Calculate touched balls
-    const BPC = totalBP + totalBC; // Calculate lost balls
-    const GGM = totalGM; // Calculate goals marked
-    const GGR = totalGR; // Calculate goals received
-    const BDP = (totalBD === 0) ? 100 : Math.max(0, 100 - (totalBD * 9)); // Calculate discipline percentage
-    const AP = totalAS; // Calculate average pressure
+    const countReports = playerReports.length;
+    const EPC = totalCP + totalEP + totalEC; // Touched balls
+    const BPC = totalBP + totalBC; // Lost balls
+    const GGM = totalGM; // Goals marked
+    const GGR = totalGR; // Goals received 
+    const BDP = 100 - (totalBD * 9); // Discipline percentage
+    const AP = totalAS; // Average pressure
+    const P = (EPC === 0) ? 0 : ((EPC - BPC) * 100 / EPC); // Control/Pass (%)
+    const T = (totalCT + totalET === 0) ? 0 : ((totalCT + totalET) / (totalCT + totalET + totalBT)) * 100; // Shoot in Frame (%)
 
-    // Determine team class and continent based on team's data
-    let CLASS = 1;
-    let CONT = 2;
-
-    // Determine team class based on the fetched class
-    if (teamData.class === 'A') {
-      CLASS = 4;
-    } else if (teamData.class === 'B') {
-      CLASS = 3;
-    } else if (teamData.class === 'C') {
-      CLASS = 2;
-    } else if (teamData.class === 'D') {
-      CLASS = 1;
+    // Recommendations
+    const recommendations = [];
+    if (BPC > 9) {
+      recommendations.push("- Trop de ballons perdus! Ameliorer les passes, Eviter de garder le ballon.");
+    }
+    if (totalCT < 9) {
+      recommendations.push("- Faible taux de tirs au but!");
+    }
+    if (GGM === 0) {
+      recommendations.push("- Faible Realisation! reviser les strategies de l'attaque.");
+    }
+    if (totalCG > 2) {
+      recommendations.push("- Defence fragile: Mauvaise couverture de surface");
+    }
+    if (BDP <= 80) {
+      recommendations.push("Discipline: Manque de respect pour l arbitre et le publique");
     }
 
-    // Determine team continent based on the fetched continent
-    if (teamData.continent === 'Europe') {
-      CONT = 4;
-    } else if (teamData.continent === 'America') {
-      CONT = 3;
-    } // Add other conditions as needed for different continents
-
     // Calculate TEAM Evaluation
-    const TE = (totalAS * CLASS) + (totalAS * CONT);
-    const GE = 20 + TE / 4;
+    const TE = (totalAS * getClassValue(teamData.class)) + (totalAS * getContinentValue(teamData.continent));
+    const GE = 20 + (TE / 4);
 
     // Determine mention and comments based on team evaluation
     let M, C;
@@ -174,8 +197,8 @@ exports.getTeamMetrics = async (req, res) => {
 
     // Generate response object with calculated values
     const responseData = {
-      controlPassPercentage: (totalCP + totalEP + totalEC) / countReports,
-      shootInFramePercentage: ((totalCT + totalET) / countReports) * 100,
+      controlPassPercentage: P,
+      shootInFramePercentage: T,
       disciplinePercentage: BDP,
       touchedBalls: EPC,
       lostBalls: BPC,
@@ -184,7 +207,10 @@ exports.getTeamMetrics = async (req, res) => {
       averagePressure: AP,
       teamEvaluation: GE,
       mention: M,
-      comments: C
+      comments: C,
+      recommendations: recommendations,
+      avgOpponentClass: teamData.class,
+      avgOpponentContinent: teamData.continent
     };
 
     // Send the response to the client
@@ -194,6 +220,36 @@ exports.getTeamMetrics = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+
+
+// Helper function to get continent value
+const getContinentValue = (continentName) => {
+  switch (continentName) {
+    case 'Europe':
+      return 4;
+    case 'America':
+      return 3;
+    case 'Africa':
+      return 4;
+    default:
+      return 2;
+  }
+};
+
+// Helper function to get class value
+const getClassValue = (className) => {
+  switch (className) {
+    case 'A':
+      return 4;
+    case 'B':
+      return 3;
+    case 'C':
+      return 4;
+    default:
+      return 2;
+  }
+};
+
 
 
 
@@ -217,7 +273,8 @@ exports.createPlayerReport = async (req, res) => {
 // Retrieve all player reports
 exports.getAllPlayerReports = async (req, res) => {
   try {
-    const playerReports = await PlayerReport.getAllPlayerReports();
+    const { teamId, matchId } = req.params;
+    const playerReports = await PlayerReport.getPlayerReportsByTeamAndMatch(teamId, matchId);
     res.json(playerReports);
   } catch (error) {
     console.error(error.message);

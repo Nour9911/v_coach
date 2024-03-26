@@ -35,9 +35,12 @@ getTeamMetricsByMatchId: async (matchId) => {
   },
 
   // Function to retrieve all player reports
-  getAllPlayerReports: async () => {
+  getPlayerReportsByTeamAndMatch: async (teamId, matchId) => {
     try {
-      const reports = await db('player_report').select('*');
+      const reports = await db('player_report')
+        .join('player', 'player_report.player_id', '=', 'player.id')
+        .where({ 'player.team_id': teamId, 'player_report.match_id': matchId })
+        .select('player_report.*');
       return reports;
     } catch (error) {
       throw error;
