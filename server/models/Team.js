@@ -13,7 +13,12 @@ const Team = {
   hashPassword: async (password) => {
     const saltRounds = 10;
     return bcrypt.hash(password, saltRounds);
+  },
+
+  getAllTeams: async () => {
+    return db('teams').select('*');
   }
+
 };
 
 module.exports = Team;

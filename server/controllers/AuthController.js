@@ -30,3 +30,13 @@ exports.login = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+
+exports.getAllTeams = async (req, res) => {
+  try {
+    const teams = await Team.getAllTeams();
+    res.json(teams);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+};
