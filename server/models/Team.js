@@ -15,10 +15,22 @@ const Team = {
     return bcrypt.hash(password, saltRounds);
   },
 
+  // Function to create a new team with a hashed password
+  createTeam: async (team_name, password, team_class, country, continent) => {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    return db('teams').insert({
+      team_name,
+      password: hashedPassword,
+      class: team_class,
+      date: new Date(),
+      country,
+      continent
+    }).returning('*');
+  },
+
   getAllTeams: async () => {
     return db('teams').select('*');
   }
-
 };
 
 module.exports = Team;
